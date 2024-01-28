@@ -4,7 +4,9 @@ use std::fs;
 pub mod db {
     use crate::get_db_connection;
     use chrono::{DateTime, Local};
+    use dotenv::dotenv;
     use rusqlite::Connection;
+    use std::env;
     #[derive(Debug, PartialEq)]
     pub struct AddrRecord {
         pub ip: String,
@@ -40,8 +42,9 @@ pub mod db {
         }
 
         pub fn insert(&self, addr_record: AddrRecord) {
-            let statement =
-                self.conn.prepare("INSERT OR REPLACE INTO addrs (ip, mac, last_seen) VALUES (?, ?, ?)");
+            let statement = self
+                .conn
+                .prepare("INSERT OR REPLACE INTO addrs (ip, mac, last_seen) VALUES (?, ?, ?)");
             let _ = statement.unwrap().execute([
                 addr_record.ip,
                 addr_record.mac,
@@ -50,6 +53,42 @@ pub mod db {
                     .format("%Y-%m-%d %H:%M:%S")
                     .to_string(),
             ]);
+        }
+    }
+    
+    #[allow(non_snake_case)]
+    pub struct Config {
+        pub DATABASE_FILE_PATH: String,
+        pub DATABASE_SEED_FILE_PATH: String,
+        pub PCAP_FILE_PATH: String,
+        pub TSHARK_RUN_DURATION: u64,
+        pub TSHARK_TARGET_INTERFACE: String,
+        pub SLEEP: u64,
+    }
+
+    impl Config {
+        pub fn from_env() -> Config {
+            dotenv().ok();
+
+            Config {
+                DATABASE_FILE_PATH: env::var("DATABASE_FILE_PATH")
+                    .expect("environment variable DATABASE_FILE must be set"),
+                DATABASE_SEED_FILE_PATH: env::var("DATABASE_SEED_FILE_PATH")
+                    .expect("environment variable DATABASE_SEED_FILE_PATH must be set"),
+                PCAP_FILE_PATH: env::var("PCAP_FILE_PATH")
+                    .expect("environment variable PCAP_FILE_PATH must be set"),
+                TSHARK_TARGET_INTERFACE: env::var("TSHARK_TARGET_INTERFACE")
+                    .expect("environment variable TSHARK_TARGET_INTERFACE must be set"),
+                TSHARK_RUN_DURATION: env::var("TSHARK_RUN_DURATION")
+                    .expect("environment variable TSHARK_RUN_DURATION must be set")
+                    .parse::<u64>()
+                    .expect("environment variable TSHARK_RUN_DURATION could not be cast to u64"),
+                SLEEP: env::var("SLEEP")
+                    .expect("environment variable SLEEP must be set")
+                    .parse::<u64>()
+                    .expect("environment variable SLEEP could not be cast to u64"),
+
+            }
         }
     }
 }
