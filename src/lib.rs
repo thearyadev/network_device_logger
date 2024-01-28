@@ -20,7 +20,7 @@ pub mod db {
 
     impl Database {
         pub fn new(database_path: &str, schema_path: &str) -> Database {
-            let conn = get_db_connection(database_path.to_string(), schema_path).unwrap();
+            let conn = get_db_connection(database_path.to_string(), schema_path.to_string()).unwrap();
             Database { conn }
         }
 
@@ -57,6 +57,7 @@ pub mod db {
     }
     
     #[allow(non_snake_case)]
+    #[derive(Debug)]
     pub struct Config {
         pub DATABASE_FILE_PATH: String,
         pub DATABASE_SEED_FILE_PATH: String,
@@ -93,7 +94,7 @@ pub mod db {
     }
 }
 
-fn get_db_connection(file: String, schema_path: &str) -> RusqliteResult<Connection, Error> {
+fn get_db_connection(file: String, schema_path: String) -> RusqliteResult<Connection, Error> {
     let conn = Connection::open(file)?;
     match is_seeded(&conn) {
         true => Ok(conn),
@@ -115,8 +116,8 @@ fn is_seeded(conn: &Connection) -> bool {
     }
 }
 
-fn seed(conn: &Connection, schema_path: &str) -> Result<(), ()> {
-    let sql = fs::read_to_string(schema_path.to_string());
+fn seed(conn: &Connection, schema_path: String) -> Result<(), ()> {
+    let sql = fs::read_to_string(schema_path);
     match sql {
         Ok(sql_string) => {
             let database_seed_result = conn.execute(&sql_string, []);
