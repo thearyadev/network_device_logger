@@ -8,6 +8,14 @@ use chrono::{Local, DateTime};
 const DATABASE_FILE_PATH: &str = "./addrs.sqlite3";
 const DATABSE_SEED_FILE_PATH: &str = "./database.sql";
 
+#[derive(Debug)]
+struct AddrRecord {
+    id: i32,
+    ip: String,
+    mac: String,
+    last_seen: DateTime<Local>
+}
+
 fn main() {
     // let interface = String::from("enp0s31f6");
     // let r = run_tshark(interface, 10);
@@ -20,8 +28,12 @@ fn main() {
         println!("database is not seeded")
     }
 
-    insert(&conn.unwrap(), "192", "00:00", Local::now());
+    // insert(&conn.unwrap(), "192", "00:00", Local::now());
+    let rows = retrieve(&conn.unwrap());
 
+    for row in rows.unwrap(){
+        println!("{:?}", row)
+    }
     println!("meow")
 }
 
@@ -40,8 +52,27 @@ fn get_db_connection() -> rusqliteResult<Connection, rusqlite::Error> {
 fn insert(conn: &Connection, ip: &str, mac: &str, last_seen: DateTime<Local>) {
     let statement = conn.prepare("INSERT INTO addrs (ip, mac, last_seen) VALUES (?, ?, ?)");
     let _ = statement.unwrap().execute([ip, mac, &last_seen.format("%Y-%m-%d %H:%M:%S").to_string()]);
-
 }
+
+
+fn retrieve(conn: &Connection) -> Result<Vec<AddrRecord>, rusqlite::Error> {
+    let mut statement = conn.prepare("SELECT * FROM addrs;")?;
+    let rows = statement.query_map([], |row| {
+        Ok(AddrRecord{
+            id: row.get(0)?,
+            ip: row.get(1)?,
+            mac: row.get(2)?,
+            last_seen: row.get(3)?
+        })
+    })?;
+
+    let mut records = Vec::new();
+    for row in rows {
+        records.push(row?);
+    }
+    Ok(records)
+}
+
 
 fn is_seeded(conn: &Connection) -> bool {
     let sql = conn.prepare("SELECT COUNT(*) FROM addrs");
