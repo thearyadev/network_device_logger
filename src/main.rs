@@ -1,40 +1,83 @@
+use chrono::{DateTime, Local};
+use rtshark;
 use rusqlite;
 use rusqlite::{Connection, Result as rusqliteResult};
 use std::fs;
+use std::ops::Add;
 use std::process::Command;
-use chrono::{Local, DateTime};
-
 
 const DATABASE_FILE_PATH: &str = "./addrs.sqlite3";
 const DATABSE_SEED_FILE_PATH: &str = "./database.sql";
+const PCAP_FILE_PATH: &str = "./memfs/scan.pcap";
+const TSHARK_RUN_DURATION: u8 = 30;
+const TSHARK_TARGET_INTERFACE: &str = "enp0s31f6";
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 struct AddrRecord {
     id: i32,
     ip: String,
     mac: String,
-    last_seen: DateTime<Local>
+    last_seen: DateTime<Local>,
 }
 
 fn main() {
-    // let interface = String::from("enp0s31f6");
-    // let r = run_tshark(interface, 10);
-    // if r.is_err(){
-    //     eprintln!("failed: {:?}", r.unwrap())
-    // }
-    //
-    let conn = get_db_connection();
-    if conn.is_err() {
-        println!("database is not seeded")
+    let r = run_tshark(TSHARK_TARGET_INTERFACE.to_string(), TSHARK_RUN_DURATION);
+    if r.is_err() {
+        eprintln!("failed: {:?}", r.unwrap())
     }
 
-    // insert(&conn.unwrap(), "192", "00:00", Local::now());
-    let rows = retrieve(&conn.unwrap());
-
-    for row in rows.unwrap(){
-        println!("{:?}", row)
+    let result = extract_pcap();
+    for addr in result.unwrap() {
+        println!("{addr:?}");
     }
-    println!("meow")
+
+    fs::remove_file(PCAP_FILE_PATH).expect("file del no worki")
+}
+
+fn extract_pcap() -> Result<Vec<AddrRecord>, String> {
+    let mut addresses: Vec<AddrRecord> = Vec::new();
+    let current_date: DateTime<Local> = Local::now();
+
+    let builder = rtshark::RTSharkBuilder::builder().input_path(PCAP_FILE_PATH);
+    let mut rtshark = builder
+        .spawn()
+        .unwrap_or_else(|e| panic!("error starting tshark {e}"));
+
+    while let Some(packet) = rtshark.read().unwrap_or_else(|e| {
+        eprintln!("Error parsing tshark output: {e}");
+        None
+    }) {
+        let mut ip_addr = String::new();
+        let mut mac_addr = String::new();
+
+        for layer in packet {
+            if layer.name() == "ip" {
+                if let Some(ip_metadata) = layer.metadata("ip.addr") {
+                    ip_addr = ip_metadata.value().to_string();
+                }
+            } else if layer.name() == "eth" {
+                if let Some(eth_metadata) = layer.metadata("eth.src") {
+                    mac_addr = eth_metadata.value().to_string();
+                }
+            }
+        }
+        if ip_addr.is_empty() || mac_addr.is_empty(){
+            continue
+        }
+
+
+
+        let addr_record = AddrRecord {
+            id: 0,
+            ip: ip_addr,
+            mac: mac_addr,
+            last_seen: current_date,
+        };
+        if !addresses.contains(&addr_record) {
+            addresses.push(addr_record)
+        }
+    }
+    Ok(addresses)
 }
 
 fn get_db_connection() -> rusqliteResult<Connection, rusqlite::Error> {
@@ -48,21 +91,26 @@ fn get_db_connection() -> rusqliteResult<Connection, rusqlite::Error> {
     }
 }
 
-
-fn insert(conn: &Connection, ip: &str, mac: &str, last_seen: DateTime<Local>) {
+fn insert(conn: &Connection, addr_record: AddrRecord) {
     let statement = conn.prepare("INSERT INTO addrs (ip, mac, last_seen) VALUES (?, ?, ?)");
-    let _ = statement.unwrap().execute([ip, mac, &last_seen.format("%Y-%m-%d %H:%M:%S").to_string()]);
+    let _ = statement.unwrap().execute([
+        addr_record.ip,
+        addr_record.mac,
+        addr_record
+            .last_seen
+            .format("%Y-%m-%d %H:%M:%S")
+            .to_string(),
+    ]);
 }
-
 
 fn retrieve(conn: &Connection) -> Result<Vec<AddrRecord>, rusqlite::Error> {
     let mut statement = conn.prepare("SELECT * FROM addrs;")?;
     let rows = statement.query_map([], |row| {
-        Ok(AddrRecord{
+        Ok(AddrRecord {
             id: row.get(0)?,
             ip: row.get(1)?,
             mac: row.get(2)?,
-            last_seen: row.get(3)?
+            last_seen: row.get(3)?,
         })
     })?;
 
@@ -73,7 +121,6 @@ fn retrieve(conn: &Connection) -> Result<Vec<AddrRecord>, rusqlite::Error> {
     Ok(records)
 }
 
-
 fn is_seeded(conn: &Connection) -> bool {
     let sql = conn.prepare("SELECT COUNT(*) FROM addrs");
     let result = sql.unwrap().query_row([], |row| row.get::<_, i64>(0));
@@ -82,9 +129,9 @@ fn is_seeded(conn: &Connection) -> bool {
         Err(e) => {
             println!("{}", e);
             return false;
-        },
+        }
 
-        _ => return true
+        _ => return true,
     }
 }
 
@@ -115,9 +162,9 @@ fn run_tshark(interface: String, duration: u8) -> Result<(), String> {
         .arg("-a")
         .arg(format!("duration:{}", duration))
         .arg("-w")
-        .arg("./scan.pcap") // Replace with your actual file path
+        .arg(PCAP_FILE_PATH) // Replace with your actual file path
         .output()
-        .expect("Failed to execute command");
+        .expect("Failed to execute tshark command");
 
     match result.status.code() {
         Some(0) => return Ok(()),
