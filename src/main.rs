@@ -2,6 +2,8 @@ use rusqlite;
 use rusqlite::{Connection, Result as rusqliteResult};
 use std::fs;
 use std::process::Command;
+use chrono::{Local, DateTime};
+
 
 const DATABASE_FILE_PATH: &str = "./addrs.sqlite3";
 const DATABSE_SEED_FILE_PATH: &str = "./database.sql";
@@ -13,10 +15,13 @@ fn main() {
     //     eprintln!("failed: {:?}", r.unwrap())
     // }
     //
-    // let conn = get_db_connection();
-    // if conn.is_err() {
-        // println!("database is not seeded")
-    // }
+    let conn = get_db_connection();
+    if conn.is_err() {
+        println!("database is not seeded")
+    }
+
+    insert(&conn.unwrap(), "192", "00:00", Local::now());
+
     println!("meow")
 }
 
@@ -29,6 +34,13 @@ fn get_db_connection() -> rusqliteResult<Connection, rusqlite::Error> {
             Ok(conn)
         }
     }
+}
+
+
+fn insert(conn: &Connection, ip: &str, mac: &str, last_seen: DateTime<Local>) {
+    let statement = conn.prepare("INSERT INTO addrs (ip, mac, last_seen) VALUES (?, ?, ?)");
+    let _ = statement.unwrap().execute([ip, mac, &last_seen.format("%Y-%m-%d %H:%M:%S").to_string()]);
+
 }
 
 fn is_seeded(conn: &Connection) -> bool {
