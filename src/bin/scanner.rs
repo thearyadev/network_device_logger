@@ -1,31 +1,32 @@
 use chrono::{DateTime, Local};
 use log::{error, info};
-use network_device_logger::db::{AddrRecord, Database};
+use network_device_logger::db::{AddrRecord, Database, Config};
 use rtshark;
 use std::fs;
 use std::process::Command;
 use std::thread::sleep;
 use std::time::Duration;
 
-const DATABASE_FILE_PATH: &str = "./addrs.sqlite3";
-const DATABSE_SEED_FILE_PATH: &str = "./database.sql";
-const PCAP_FILE_PATH: &str = "./memfs/scan.pcap";
-const TSHARK_RUN_DURATION: u16 = 30;
-const TSHARK_TARGET_INTERFACE: &str = "enp0s31f6";
-const SLEEP: u64 = 30;
 
 fn main() {
-    let _ = fs::remove_file(PCAP_FILE_PATH);
     env_logger::init();
 
+    let config: Config = Config::from_env();
+    info!("loaded config -> {config:?}");
+
+    let _ = fs::remove_file(&config.PCAP_FILE_PATH);
+
     loop {
-        info!("connecting to database -> {}", DATABASE_FILE_PATH);
-        let db = Database::new(DATABASE_FILE_PATH, DATABSE_SEED_FILE_PATH);
+        info!("connecting to database -> {}", &config.DATABASE_FILE_PATH);
+        let db = Database::new(&config.DATABASE_FILE_PATH, &config.DATABASE_SEED_FILE_PATH);
         info!("database connection successful");
 
-        info!("starting tshark on <{}>", TSHARK_TARGET_INTERFACE);
-        info!("tshark running for {} seconds", TSHARK_RUN_DURATION);
-        match run_tshark(TSHARK_TARGET_INTERFACE.to_string(), TSHARK_RUN_DURATION) {
+        info!("starting tshark on <{}>", &config.TSHARK_TARGET_INTERFACE);
+        info!("tshark running for {} seconds", &config.TSHARK_RUN_DURATION);
+        match run_tshark(
+            &config.TSHARK_TARGET_INTERFACE,
+            &config.PCAP_FILE_PATH,
+            config.TSHARK_RUN_DURATION) {
             Err(message) => {
                 error!("{}", message);
                 return;
@@ -34,8 +35,8 @@ fn main() {
                 // skip
             }
         }
-        info!("reading generated pcap file -> {}", PCAP_FILE_PATH);
-        match extract_pcap() {
+        info!("reading generated pcap file -> {}", config.PCAP_FILE_PATH);
+        match extract_pcap(&config.PCAP_FILE_PATH) {
             Err(message) => {
                 error!("{}", message)
             }
@@ -47,18 +48,20 @@ fn main() {
             }
         }
         info!("deleting generated pcap file...");
-        let _ = fs::remove_file(PCAP_FILE_PATH);
+        let _ = fs::remove_file(&config.PCAP_FILE_PATH);
 
-        info!("sleeping {} seconds", SLEEP);
-        sleep(Duration::from_secs(SLEEP));
+        info!("sleeping {} seconds", &config.SLEEP);
+        sleep(Duration::from_secs(config.SLEEP));
     }
 }
 
-fn extract_pcap() -> Result<Vec<AddrRecord>, String> {
+fn extract_pcap(pcap_path: &str) -> Result<Vec<AddrRecord>, String> {
     let mut addresses: Vec<AddrRecord> = Vec::new();
     let current_date: DateTime<Local> = Local::now();
+    
 
-    let builder = rtshark::RTSharkBuilder::builder().input_path(PCAP_FILE_PATH);
+
+    let builder = rtshark::RTSharkBuilder::builder().input_path(&pcap_path);
     let mut rtshark = builder
         .spawn()
         .unwrap_or_else(|e| panic!("error starting tshark {e}"));
@@ -98,14 +101,14 @@ fn extract_pcap() -> Result<Vec<AddrRecord>, String> {
     Ok(addresses)
 }
 
-fn run_tshark(interface: String, duration: u16) -> Result<(), String> {
+fn run_tshark(interface: &str, pcap_path: &str, duration: u64) -> Result<(), String> {
     let result = Command::new("tshark")
         .arg("-i")
-        .arg(interface) // Replace with your actual interface, e.g., eth0
+        .arg(interface)
         .arg("-a")
         .arg(format!("duration:{}", duration))
         .arg("-w")
-        .arg(PCAP_FILE_PATH) // Replace with your actual file path
+        .arg(pcap_path)
         .output()
         .expect("Failed to execute tshark command");
 
