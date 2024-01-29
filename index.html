@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+	<style>
+		body {
+			background-color: black;
+			color: white;
+			padding: 0;
+			margin: 0;
+			height: 100%;
+		}
+		.addr_list {
+			padding: 0px;
+		}	
+		.addr_list_item {
+			display: flex;
+			list-style: none;
+			justify-content: space-between;
+			padding: 0.5em; 
+			border-radius: 10px;
+		}
+
+		.addr_list_item:hover {
+			background-color: black;
+			opacity: 0.5;
+			color: white;
+		}
+		main {
+			margin: 2%;
+			border: 1px solid gray;
+			border-radius: 10px;
+			padding: 2vw;
+		}
+
+		.ip_heading, .mac_heading, .last_seen_heading {
+			font-weight: 800;
+		}
+		
+	</style>
+	<script src="https://unpkg.com/htmx.org@1.9.10"
+		integrity="sha384-D1Kt99CQMDuVetoL1lrYwg5t+9QdHe7NLX/SoJYkXDFfX37iInKRy5xLSi8nO7UC"
+		crossorigin="anonymous"></script>
+</head>
+
+<body>
+	<main hx-get="api/addrs" hx-trigger="load">
+		Loading...
+	</main>
+</body>
+
+</html>
