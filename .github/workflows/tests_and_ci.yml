@@ -1,0 +1,44 @@
+name: Tests and CI
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+jobs:
+  tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+  docker-server-build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - name: Build the server image
+        run: |
+          docker build . --tag ghcr.io/thearyadev/network_device_logger_scanner:latest --file ./Dockerfile.scanner
+
+  docker-client-build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - name: Build the frontend image
+        run: |
+          docker build . --tag ghcr.io/thearyadev/network_device_logger_client:latest --file ./Dockerfile.client
+  
+
+  publish:
+    runs-on: ubuntu-latest
+    needs:
+      - docker-server-build
+      - docker-client-build
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    steps:
+      - uses: actions/checkout@v3
+      - name: Docker Login
+        run: |
+          docker login --username thearyadev --password ${{ secrets.GH_PAT }} ghcr.io
+      - name: push images
+        run: |
+          docker push ghcr.io/thearyadev/top500-aggregator-frontend:latest
+          docker push ghcr.io/thearyadev/top500-aggregator-server:latest
