@@ -36,5 +36,5 @@ jobs:
           docker login --username thearyadev --password ${{ secrets.GH_PAT }} ghcr.io
       - name: push images
         run: |
-          docker push ghcr.io/thearyadev/top500-aggregator-frontend:latest
-          docker push ghcr.io/thearyadev/top500-aggregator-server:latest
+          docker push ghcr.io/thearyadev/network_device_logger_client:latest
+          docker push ghcr.io/thearyadev/network_device_logger_scanner:latest
