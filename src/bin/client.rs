@@ -13,12 +13,12 @@ async fn main() {
         .route("/api/addrs", get(api_addrs))
         .layer(Extension(shared_config));
 
-    let listener = tokio::net::TcpListener::bind("0.0.0.0:3000").await.unwrap();
+    let listener = tokio::net::TcpListener::bind("0.0.0.0:8080").await.unwrap();
     axum::serve(listener, app).await.unwrap();
 }
 
 async fn root() -> Html<&'static str> {
-    Html(std::include_str!("../../index.html"))
+    Html(std::include_str!("./index.html"))
 }
 
 async fn api_addrs(Extension(config): Extension<Arc<Config>>) -> String {
