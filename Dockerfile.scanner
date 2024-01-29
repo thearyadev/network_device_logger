@@ -9,6 +9,11 @@ COPY ./src ./src
 RUN cargo build --bin scanner
 
 FROM debian:buster-slim
+
+LABEL org.opencontainers.image.source=https://github.com/thearyadev/network_device_logger
+LABEL org.opencontainers.image.description="network_device_logger scanner"
+LABEL org.opencontainers.image.licenses=MIT
+
 WORKDIR /scanner
 
 ARG DEBIAN_FRONTEND=noninteractive

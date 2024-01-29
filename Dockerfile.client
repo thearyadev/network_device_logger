@@ -9,6 +9,12 @@ COPY ./src ./src
 RUN cargo build --bin client
 
 FROM debian:buster-slim
+
+LABEL org.opencontainers.image.source=https://github.com/thearyadev/network_device_logger
+LABEL org.opencontainers.image.description="network_device_logger client"
+LABEL org.opencontainers.image.licenses=MIT
+
+
 WORKDIR /client
 
 ARG DEBIAN_FRONTEND=noninteractive
