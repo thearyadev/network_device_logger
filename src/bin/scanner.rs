@@ -7,6 +7,7 @@ use std::process::Command;
 use std::thread::sleep;
 use std::time::Duration;
 
+const IP_SW_WHITELIST: [&str; 3] = ["192", "10", "172"];
 
 fn main() {
     env_logger::init();
@@ -84,7 +85,8 @@ fn extract_pcap(pcap_path: &str) -> Result<Vec<AddrRecord>, String> {
                 }
             }
         }
-        if ip_addr.is_empty() || mac_addr.is_empty() {
+
+        if ip_addr.is_empty() || mac_addr.is_empty() || !is_whitelisted(&ip_addr) {
             continue;
         }
 
@@ -113,8 +115,20 @@ fn run_tshark(interface: &str, pcap_path: &str, duration: u64) -> Result<(), Str
         .expect("Failed to execute tshark command");
 
     match result.status.code() {
-        Some(0) => return Ok(()),
-        Some(code) => return Err(format!("tshark exited with {}", code)),
-        None => return Err("Unknown error; no exit code".to_string()),
+        Some(0) => Ok(()),
+        Some(_) => {
+            let stderr = String::from_utf8_lossy(&result.stderr);
+            Err(format!("Error: {}", stderr))
+        },
+        None => Err("Unknown error; no exit code".to_string()),
     }
+}
+
+fn is_whitelisted(ip: &str) -> bool {
+    for prefix in IP_SW_WHITELIST{
+        if ip.starts_with(prefix){
+            return true
+        }
+    }
+    return false
 }
