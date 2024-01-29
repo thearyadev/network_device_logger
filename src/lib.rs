@@ -25,7 +25,7 @@ pub mod db {
         }
 
         pub fn get_all_records(&self) -> Result<Vec<AddrRecord>, rusqlite::Error> {
-            let mut statement = self.conn.prepare("SELECT * FROM addrs;")?;
+            let mut statement = self.conn.prepare("SELECT * FROM addrs ORDER BY last_seen DESC;")?;
             let rows = statement.query_map([], |row| {
                 Ok(AddrRecord {
                     ip: row.get(0)?,
