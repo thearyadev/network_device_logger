@@ -7,7 +7,7 @@ use std::process::Command;
 use std::thread::sleep;
 use std::time::Duration;
 
-const IP_SW_WHITELIST: [&str; 3] = ["192", "10", "172"];
+const IP_SW_WHITELIST: [&str; 3] = ["192.", "10.", "172."];
 
 fn main() {
     env_logger::init();
