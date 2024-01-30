@@ -20,12 +20,15 @@ pub mod db {
 
     impl Database {
         pub fn new(database_path: &str, schema_path: &str) -> Database {
-            let conn = get_db_connection(database_path.to_string(), schema_path.to_string()).unwrap();
+            let conn =
+                get_db_connection(database_path.to_string(), schema_path.to_string()).unwrap();
             Database { conn }
         }
 
         pub fn get_all_records(&self) -> Result<Vec<AddrRecord>, rusqlite::Error> {
-            let mut statement = self.conn.prepare("SELECT * FROM addrs ORDER BY last_seen DESC;")?;
+            let mut statement = self
+                .conn
+                .prepare("SELECT * FROM addrs ORDER BY last_seen DESC;")?;
             let rows = statement.query_map([], |row| {
                 Ok(AddrRecord {
                     ip: row.get(0)?,
@@ -55,7 +58,7 @@ pub mod db {
             ]);
         }
     }
-    
+
     #[allow(non_snake_case)]
     #[derive(Debug)]
     pub struct Config {
@@ -88,8 +91,16 @@ pub mod db {
                     .expect("environment variable SLEEP must be set")
                     .parse::<u64>()
                     .expect("environment variable SLEEP could not be cast to u64"),
-
             }
+        }
+    }
+    pub fn to_time_since(dt: DateTime<Local>) -> String {
+        let duration = Local::now().signed_duration_since(dt);
+        match duration {
+            d if d.num_days() > 0 => format!("{} days ago", d.num_days()),
+            h if h.num_hours() > 0 => format!("{} hours ago", h.num_hours()),
+            m if m.num_minutes() > 0 => format!("{} minutes ago", m.num_minutes()),
+            _ => format!("Recently"),
         }
     }
 }
