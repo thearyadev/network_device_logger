@@ -1,7 +1,7 @@
 version: "3.8"
 services:
   scanner:
-    image: https://ghcr.io/thearyadev/network_device_logger_scanner:latest 
+    image: ghcr.io/thearyadev/network_device_logger_scanner:latest 
     network_mode: host
     volumes:
       - ./data:/scanner/data
@@ -13,7 +13,7 @@ services:
       TSHARK_TARGET_INTERFACE: enp0s31f6
       SLEEP: 30
   client:
-    image: https://ghcr.io/thearyadev/network_device_logger_client:latest
+    image: ghcr.io/thearyadev/network_device_logger_client:latest
     ports:
       - "8080:8080"
     volumes:
