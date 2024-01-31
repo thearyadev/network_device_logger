@@ -25,6 +25,12 @@ RUN apt-get update && \
 
 ENV RUST_LOG=info
 
+ENV PCAP_FILE_PATH=./memfs/scan.pcap
+ENV TSHARK_RUN_DURATION=30
+ENV TSHARK_TARGET_INTERFACE=enp0s31f6
+ENV SLEEP=30
+
+
 COPY --from=builder /build/target/debug/client .
 COPY database.sql .
 
