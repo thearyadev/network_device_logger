@@ -6,6 +6,10 @@ services:
     network_mode: host
     volumes:
       - ./data:/scanner/data
+      - type: tmpfs
+        target: /scanner/memfs
+        tmpfs:
+          size: 100000000 # approx 100 megabytes
     environment:
       DATABASE_FILE_PATH: ./data/addrs.sqlite3
       DATABASE_SEED_FILE_PATH: ./database.sql
@@ -23,9 +27,4 @@ services:
     environment:
       DATABASE_FILE_PATH: ./data/addrs.sqlite3
       DATABASE_SEED_FILE_PATH: ./database.sql
-      PCAP_FILE_PATH: ./memfs/scan.pcap
-      TSHARK_RUN_DURATION: 30
-      TSHARK_TARGET_INTERFACE: enp0s31f6
-      SLEEP: 30
-
 
