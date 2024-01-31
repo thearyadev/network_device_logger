@@ -6,6 +6,10 @@ services:
     network_mode: host
     volumes:
       - ./data:/scanner/data
+      - type: tmpfs
+        target: /scanner/memfs
+        tmpfs:
+          size: 100000000 # approx 100 megabytes
     environment:
       DATABASE_FILE_PATH: ./data/addrs.sqlite3
       DATABASE_SEED_FILE_PATH: ./database.sql
