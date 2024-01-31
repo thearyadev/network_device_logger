@@ -57,6 +57,11 @@ pub mod db {
                     .to_string(),
             ]);
         }
+
+        pub fn clear_all(&self) {
+            let statement = self.conn.prepare("DELETE FROM addrs");
+            let _ = statement.unwrap().execute([]);
+        } 
     }
 
     #[allow(non_snake_case)]
