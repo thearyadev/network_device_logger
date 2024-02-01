@@ -5,13 +5,35 @@ pub mod db {
     use crate::get_db_connection;
     use chrono::{DateTime, Local};
     use dotenv::dotenv;
+    use rlua::{Context, Error as LuaError, Lua, Result as LuaResult, UserData};
     use rusqlite::Connection;
-    use std::env;
+    use std::{env, fs};
     #[derive(Debug, PartialEq)]
     pub struct AddrRecord {
         pub ip: String,
         pub mac: String,
         pub last_seen: DateTime<Local>,
+    }
+
+    impl UserData for AddrRecord {
+        fn add_methods<'lua, T: rlua::prelude::LuaUserDataMethods<'lua, Self>>(_methods: &mut T) {
+            _methods.add_method("ip", |_, this, _: ()| Ok(this.ip.clone()));
+            _methods.add_method("mac", |_, this, _: ()| Ok(this.mac.clone()));
+        }
+    }
+
+    pub enum Event {
+        NewInternetProtocolAddress,
+        HardwareChange,
+    }
+
+    impl Event {
+        fn to_lua(&self) -> String {
+            match self {
+                Event::NewInternetProtocolAddress => "NewInternetProtocolAddress".to_owned(),
+                Event::HardwareChange => "HardwareChange".to_owned(),
+            }
+        }
     }
 
     pub struct Database {
@@ -61,7 +83,7 @@ pub mod db {
         pub fn clear_all(&self) {
             let statement = self.conn.prepare("DELETE FROM addrs");
             let _ = statement.unwrap().execute([]);
-        } 
+        }
     }
 
     #[allow(non_snake_case)]
@@ -107,6 +129,25 @@ pub mod db {
             m if m.num_minutes() > 0 => format!("{} minutes ago", m.num_minutes()),
             _ => format!("Recently"),
         }
+    }
+
+    pub fn lua_exec(addr_record: AddrRecord, event: Event, lua_file_path: String) -> LuaResult<()> {
+        let lua = Lua::new();
+        lua.context(|ctx| {
+            let globals = ctx.globals();
+            globals.set("addrRecord", addr_record)?;
+
+            globals.set("event", event.to_lua())?;
+            Ok(())
+        })?;
+
+        lua.context(|ctx| {
+            let _ = ctx
+                .load(&fs::read_to_string(&lua_file_path).expect("unable to read lua file"))
+                .exec();
+        });
+
+        Ok(())
     }
 }
 
