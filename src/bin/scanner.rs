@@ -1,7 +1,8 @@
 use chrono::{DateTime, Local};
 use log::{error, info};
-use network_device_logger::db::{AddrRecord, Database, Config};
+use network_device_logger::db::{lua_exec, AddrRecord, Config, Database, Event};
 use rtshark;
+use std::borrow::Borrow;
 use std::fs;
 use std::process::Command;
 use std::thread::sleep;
@@ -27,7 +28,8 @@ fn main() {
         match run_tshark(
             &config.TSHARK_TARGET_INTERFACE,
             &config.PCAP_FILE_PATH,
-            config.TSHARK_RUN_DURATION) {
+            config.TSHARK_RUN_DURATION,
+        ) {
             Err(message) => {
                 error!("{}", message);
                 return;
@@ -42,9 +44,31 @@ fn main() {
                 error!("{}", message)
             }
             Ok(results) => {
+                let current_entries = db.get_all_records().unwrap();
                 for addr in results {
                     info!("{:?}", addr);
+
+                    match current_entries.iter().find(|addr_record| addr_record.ip == addr.ip){
+                        Some(addr_record) => {
+                            if addr.mac != addr_record.mac{
+                                // hw change
+                                lua_exec(addr, Event::HardwareChange, "./gnome.lua".to_string());
+                            };
+                            Ok(())
+
+                        },
+                        None => {
+                            // new ip
+                            lua_exec(addr, Event::NewInternetProtocolAddress, "./gnome.lua".to_string())
+                        }
+                    };
+
+
                     db.insert(addr);
+
+
+
+
                 }
             }
         }
@@ -56,11 +80,10 @@ fn main() {
     }
 }
 
+
 fn extract_pcap(pcap_path: &str) -> Result<Vec<AddrRecord>, String> {
     let mut addresses: Vec<AddrRecord> = Vec::new();
     let current_date: DateTime<Local> = Local::now();
-    
-
 
     let builder = rtshark::RTSharkBuilder::builder().input_path(&pcap_path);
     let mut rtshark = builder
@@ -119,16 +142,16 @@ fn run_tshark(interface: &str, pcap_path: &str, duration: u64) -> Result<(), Str
         Some(_) => {
             let stderr = String::from_utf8_lossy(&result.stderr);
             Err(format!("Error: {}", stderr))
-        },
+        }
         None => Err("Unknown error; no exit code".to_string()),
     }
 }
 
 fn is_whitelisted(ip: &str) -> bool {
-    for prefix in IP_SW_WHITELIST{
-        if ip.starts_with(prefix){
-            return true
+    for prefix in IP_SW_WHITELIST {
+        if ip.starts_with(prefix) {
+            return true;
         }
     }
-    return false
+    return false;
 }
